@@ -106,18 +106,13 @@ public class Application {
         Integer yBorder = others.stream().map(p -> p.y).max(Integer::compare).orElseThrow();
 
         log.info(String.valueOf(me));
-
-
+        
         if (isAnyoneClose(me, others)) {
             return "T";
         } else {
-            if (me.wasHit) {
-                log.info("I was hit - fleeing");
-                return "F";
-            }
-
-            if(moveNotTurn){
+            if(moveNotTurn || me.wasHit){
                 moveNotTurn = false;
+                return "F";
             } else {
                 moveNotTurn = true;
                 if(Set.of(0, xBorder).contains(me.x) || Set.of(0, yBorder).contains(me.y)){
