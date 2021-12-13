@@ -85,19 +85,17 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Lorem ipsum5";
+        return "Lorem ipsum6";
     }
 
     @PostMapping("/**")
     public String index(@RequestBody ArenaUpdate arenaUpdate) {
         writeCommittedStream.send(arenaUpdate.arena);
-        System.out.println(arenaUpdate);
-        String command = getCommand(arenaUpdate);
-        log.info("executing {}", command);
-        return command;
+        return getCommand(arenaUpdate);
     }
 
     private String getCommand(ArenaUpdate arenaUpdate) {
+        String command;
         String self = arenaUpdate._links.self.href;
         PlayerState me = arenaUpdate.arena.state.get(self);
         List<PlayerState> others = getOthers(arenaUpdate, self);
@@ -105,32 +103,9 @@ public class Application {
         Integer xBorder = others.stream().map(p -> p.x).max(Integer::compare).orElseThrow();
         Integer yBorder = others.stream().map(p -> p.y).max(Integer::compare).orElseThrow();
 
+
         log.info(String.valueOf(me));
-        
-        if (isAnyoneClose(me, others)) {
-            return "T";
-        } else {
-            if(moveNotTurn || me.wasHit){
-                moveNotTurn = false;
-                return "F";
-            } else {
-                moveNotTurn = true;
-                if(Set.of(0, xBorder).contains(me.x) || Set.of(0, yBorder).contains(me.y)){
-                    currentTurn = currentTurn.equals("L") ? "R" : "L";
-                }
-                return currentTurn;
-            }
-        }
-    }
 
-    private List<PlayerState> getOthers(ArenaUpdate arenaUpdate, String self) {
-        return arenaUpdate.arena.state.entrySet().stream()
-                .filter(e -> !e.getKey().equals(self))
-                .map(Map.Entry::getValue)
-                .collect(Collectors.toList());
-    }
-
-    private boolean isAnyoneClose(PlayerState me, List<PlayerState> others) {
         Set<Integer> oy = others.stream()
                 .filter(e -> e.x.equals(me.x))
                 .map(e -> e.y)
@@ -140,32 +115,80 @@ public class Application {
                 .map(e -> e.x)
                 .collect(Collectors.toSet());
 
-        log.info("Facing {}. Players on same X {}: %s. On Y: {} ", me.direction, ox.size(), oy.size());
-        Set<Integer> found;
+        Set<Integer> closeOps;
 
         switch (me.direction) {
             case "N":
-                found = oy.stream().filter(y -> y < me.y).filter(y -> me.y - y <= 3).collect(Collectors.toSet());
+                closeOps = oy.stream().filter(y -> y < me.y).filter(y -> me.y - y <= 3).collect(Collectors.toSet());
                 break;
             case "W":
-                found = ox.stream().filter(x -> x < me.x).filter(x -> me.x - x <= 3).collect(Collectors.toSet());
+                closeOps = ox.stream().filter(x -> x < me.x).filter(x -> me.x - x <= 3).collect(Collectors.toSet());
                 break;
             case "S":
-                found = oy.stream().filter(y -> y > me.y).filter(y -> y - me.y <= 3).collect(Collectors.toSet());
+                closeOps = oy.stream().filter(y -> y > me.y).filter(y -> y - me.y <= 3).collect(Collectors.toSet());
                 break;
             case "E":
-                found = ox.stream().filter(x -> x > me.x).filter(x -> x - me.x <= 3).collect(Collectors.toSet());
+                closeOps = ox.stream().filter(x -> x > me.x).filter(x -> x - me.x <= 3).collect(Collectors.toSet());
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + me.direction);
         }
 
-        boolean facingSomeone = found.size() > 0;
+        boolean facingSomeone = closeOps.size() > 0;
+
+        if (!facingSomeone & me.wasHit) {
+            log.info("Fleeing, nobody here");
+            return "F";
+        }
+
+        if (facingSomeone & me.wasHit & isSomeoneInFrontOfMe(me, closeOps)) {
+            moveNotTurn = true;
+            return "L";
+        }
 
         if (facingSomeone) {
-            log.info("Found someone (x:{} y:{}) {}: {}", me.x, me.y, me.direction, Arrays.stream(found.toArray()).toArray());
+            log.info("Found someone (x:{} y:{}) {}: {}", me.x, me.y, me.direction, Arrays.stream(closeOps.toArray()).toArray());
+            command = "T";
+        } else {
+            if (moveNotTurn || me.wasHit) {
+                moveNotTurn = false;
+                command = "F";
+            } else {
+                moveNotTurn = true;
+                if (Set.of(0, xBorder).contains(me.x) || Set.of(0, yBorder).contains(me.y)) {
+                    currentTurn = currentTurn.equals("L") ? "R" : "L";
+                }
+                command = currentTurn;
+            }
         }
-        return facingSomeone;
+
+        log.info("Facing {} at x {} y {}. Executing {}", me.direction, me.x, me.y, command);
+        return command;
+    }
+
+    private boolean isSomeoneInFrontOfMe(PlayerState me, Set<Integer> closeOps) {
+        switch (me.direction) {
+            case "N":
+                return anyoneInFront(closeOps, me.y);
+            case "S":
+                return anyoneInFront(closeOps, me.y);
+            case "E":
+                return anyoneInFront(closeOps, me.x);
+            case "W":
+                return anyoneInFront(closeOps, me.x);
+        }
+
+    }
+
+    private boolean anyoneInFront(Set<Integer> closeOps, Integer y) {
+        return Math.abs(y - closeOps.stream().mapToInt(x -> x).min().orElseThrow()) == 1;
+    }
+
+    private List<PlayerState> getOthers(ArenaUpdate arenaUpdate, String self) {
+        return arenaUpdate.arena.state.entrySet().stream()
+                .filter(e -> !e.getKey().equals(self))
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
     }
 
 
