@@ -24,13 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @SpringBootApplication
 @RestController
 public class Application {
+
+    static boolean moveNotTurn = true;
+    static String currentTurn = "L";
 
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(Application.class);
     static int counter;
@@ -83,7 +85,7 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Lorem ipsum4";
+        return "Lorem ipsum5";
     }
 
     @PostMapping("/**")
@@ -100,10 +102,13 @@ public class Application {
         PlayerState me = arenaUpdate.arena.state.get(self);
         List<PlayerState> others = getOthers(arenaUpdate, self);
 
+        Integer xBorder = others.stream().map(p -> p.x).max(Integer::compare).orElseThrow();
+        Integer yBorder = others.stream().map(p -> p.y).max(Integer::compare).orElseThrow();
+
         log.info(String.valueOf(me));
 
 
-        if (isAnyoneInFrontOfMe(me, others)) {
+        if (isAnyoneClose(me, others)) {
             return "T";
         } else {
             if (me.wasHit) {
@@ -111,12 +116,15 @@ public class Application {
                 return "F";
             }
 
-            counter++;
-            if (counter > 2) {
-                counter = 0;
-                return "F";
+            if(moveNotTurn){
+                moveNotTurn = false;
+            } else {
+                moveNotTurn = true;
+                if(Set.of(0, xBorder).contains(me.x) || Set.of(0, yBorder).contains(me.y)){
+                    currentTurn = currentTurn.equals("L") ? "R" : "L";
+                }
+                return currentTurn;
             }
-            return "L";
         }
     }
 
@@ -127,7 +135,7 @@ public class Application {
                 .collect(Collectors.toList());
     }
 
-    private boolean isAnyoneInFrontOfMe(PlayerState me, List<PlayerState> others) {
+    private boolean isAnyoneClose(PlayerState me, List<PlayerState> others) {
         Set<Integer> oy = others.stream()
                 .filter(e -> e.x.equals(me.x))
                 .map(e -> e.y)
