@@ -6,7 +6,7 @@ import com.google.cloud.bigquery.storage.v1.*;
 import com.google.protobuf.Descriptors;
 import org.json.JSONArray;
 import org.json.JSONObject;
- 
+
 import java.io.IOException;
 import java.time.Instant;
 
@@ -109,7 +109,7 @@ public class Application {
                 log.info("I was hit - fleeing");
                 return "F";
             }
-            
+
             counter++;
             if (counter > 2) {
                 counter = 0;
@@ -137,84 +137,86 @@ public class Application {
                 .collect(Collectors.toSet());
 
         log.info("Facing {}. Players on same X {}: %s. On Y: {} ",  me.direction, ox.size(), oy.size());
-
-        boolean facingSomeone;
-
+        Set<Integer> found;
 
         switch (me.direction) {
             case "N":
-                facingSomeone = oy.stream().filter(y -> y < me.y).anyMatch(y -> me.y - y <= 3);
+                found = oy.stream().filter(y -> y < me.y).filter(y -> me.y - y <= 3).collect(Collectors.toSet());
                 break;
             case "W":
-                facingSomeone = ox.stream().filter(x -> x < me.x).anyMatch(x -> me.x - x <= 3);
+                found = ox.stream().filter(x -> x < me.x).filter(x -> me.x - x <= 3).collect(Collectors.toSet());
                 break;
             case "S":
-                facingSomeone = oy.stream().filter(y -> y > me.y).anyMatch(y -> y - me.y <= 3);
+                found = oy.stream().filter(y -> y > me.y).filter(y -> y - me.y <= 3).collect(Collectors.toSet());
                 break;
             case "E":
-                facingSomeone = ox.stream().filter(x -> x > me.x).anyMatch(x -> x - me.x <= 3);
+                found = ox.stream().filter(x -> x > me.x).filter(x -> x - me.x <= 3).collect(Collectors.toSet());
                 break;
             default:
-                facingSomeone = false;
+                throw new IllegalStateException("Unexpected value: " + me.direction);
         }
+
+        boolean facingSomeone = found.size() > 0;
+
         if (facingSomeone) {
-            log.info("Found someone");
+            log.info("Found someone {}: {}", me.direction, found.toString());
         }
         return facingSomeone;
     }
 
 
+
+
     static class WriteCommittedStream {
 
         final JsonStreamWriter jsonStreamWriter;
-    
+
         public WriteCommittedStream(String projectId, String datasetName, String tableName) throws IOException, Descriptors.DescriptorValidationException, InterruptedException {
-    
-          try (BigQueryWriteClient client = BigQueryWriteClient.create()) {
-    
-            WriteStream stream = WriteStream.newBuilder().setType(WriteStream.Type.COMMITTED).build();
-            TableName parentTable = TableName.of(projectId, datasetName, tableName);
-            CreateWriteStreamRequest createWriteStreamRequest =
-                    CreateWriteStreamRequest.newBuilder()
-                            .setParent(parentTable.toString())
-                            .setWriteStream(stream)
-                            .build();
-    
-            WriteStream writeStream = client.createWriteStream(createWriteStreamRequest);
-    
-            jsonStreamWriter = JsonStreamWriter.newBuilder(writeStream.getName(), writeStream.getTableSchema()).build();
-          }
+
+            try (BigQueryWriteClient client = BigQueryWriteClient.create()) {
+
+                WriteStream stream = WriteStream.newBuilder().setType(WriteStream.Type.COMMITTED).build();
+                TableName parentTable = TableName.of(projectId, datasetName, tableName);
+                CreateWriteStreamRequest createWriteStreamRequest =
+                        CreateWriteStreamRequest.newBuilder()
+                                .setParent(parentTable.toString())
+                                .setWriteStream(stream)
+                                .build();
+
+                WriteStream writeStream = client.createWriteStream(createWriteStreamRequest);
+
+                jsonStreamWriter = JsonStreamWriter.newBuilder(writeStream.getName(), writeStream.getTableSchema()).build();
+            }
         }
-    
+
         public ApiFuture<AppendRowsResponse> send(Arena arena) {
-          Instant now = Instant.now();
-          JSONArray jsonArray = new JSONArray();
-    
-          arena.state.forEach((url, playerState) -> {
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("x", playerState.x);
-            jsonObject.put("y", playerState.y);
-            jsonObject.put("direction", playerState.direction);
-            jsonObject.put("wasHit", playerState.wasHit);
-            jsonObject.put("score", playerState.score);
-            jsonObject.put("player", url);
-            jsonObject.put("timestamp", now.getEpochSecond() * 1000 * 1000);
-            jsonArray.put(jsonObject);
-          });
-    
-          return jsonStreamWriter.append(jsonArray);
+            Instant now = Instant.now();
+            JSONArray jsonArray = new JSONArray();
+
+            arena.state.forEach((url, playerState) -> {
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("x", playerState.x);
+                jsonObject.put("y", playerState.y);
+                jsonObject.put("direction", playerState.direction);
+                jsonObject.put("wasHit", playerState.wasHit);
+                jsonObject.put("score", playerState.score);
+                jsonObject.put("player", url);
+                jsonObject.put("timestamp", now.getEpochSecond() * 1000 * 1000);
+                jsonArray.put(jsonObject);
+            });
+
+            return jsonStreamWriter.append(jsonArray);
         }
-    
-      }
-    
-      final String projectId = ServiceOptions.getDefaultProjectId();
-      final String datasetName = "snowball";
-      final String tableName = "events";
-    
-      final WriteCommittedStream writeCommittedStream;
-    
-      public Application() throws Descriptors.DescriptorValidationException, IOException, InterruptedException {
+
+    }
+
+    final String projectId = ServiceOptions.getDefaultProjectId();
+    final String datasetName = "snowball";
+    final String tableName = "events";
+
+    final WriteCommittedStream writeCommittedStream;
+
+    public Application() throws Descriptors.DescriptorValidationException, IOException, InterruptedException {
         writeCommittedStream = new WriteCommittedStream(projectId, datasetName, tableName);
-      }
-    
+    }
 }
