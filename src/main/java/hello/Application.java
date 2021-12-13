@@ -37,6 +37,17 @@ public class Application {
         public String direction;
         public Boolean wasHit;
         public Integer score;
+
+        @Override
+        public String toString() {
+            return "State: {" +
+                    "x=" + x +
+                    ", y=" + y +
+                    ", direction='" + direction + '\'' +
+                    ", wasHit=" + wasHit +
+                    ", score=" + score +
+                    '}';
+        }
     }
 
     static class Arena {
@@ -60,7 +71,7 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Let the battle begin!";
+        return "Lorem ipsum2";
     }
 
     @PostMapping("/**")
@@ -72,12 +83,11 @@ public class Application {
     }
 
     private String getCommand(ArenaUpdate arenaUpdate) {
-        String[] commands = new String[]{"F", "R", "L"};
-        int i = new Random().nextInt(3);
-
         String self = arenaUpdate._links.self.href;
         PlayerState me = arenaUpdate.arena.state.get(self);
         List<PlayerState> others = getOthers(arenaUpdate, self);
+
+        log.info(String.valueOf(me));
 
         if (me.wasHit) {
             log.info("I was hit");
