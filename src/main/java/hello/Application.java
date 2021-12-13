@@ -60,12 +60,18 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Lorem ipsum";
+        return "Let the battle begin!";
     }
 
     @PostMapping("/**")
     public String index(@RequestBody ArenaUpdate arenaUpdate) {
         System.out.println(arenaUpdate);
+        String command = getCommand(arenaUpdate);
+        log.info("executing {}", command);
+        return command;
+    }
+
+    private String getCommand(ArenaUpdate arenaUpdate) {
         String[] commands = new String[]{"F", "R", "L"};
         int i = new Random().nextInt(3);
 
@@ -103,26 +109,39 @@ public class Application {
     }
 
     private boolean isAnyoneInFrontOfMe(PlayerState me, List<PlayerState> others) {
-        Set<Integer> oy = others.stream().map(e -> e.y).collect(Collectors.toSet());
-        Set<Integer> ox = others.stream().map(e -> e.x).collect(Collectors.toSet());
+        Set<Integer> oy = others.stream()
+                .filter(e -> e.x.equals(me.x))
+                .map(e -> e.y)
+                .collect(Collectors.toSet());
+        Set<Integer> ox = others.stream()
+                .filter(e -> e.y.equals(me.y))
+                .map(e -> e.x)
+                .collect(Collectors.toSet());
+
+        log.info("Facing {}. Players on same X {}: %s. On Y: {} ",  me.direction, ox.size(), oy.size());
+
+        boolean facingSomeone;
 
         switch (me.direction) {
             case "N":
-                log.info("N - found someone");
-                return oy.stream().anyMatch(y -> me.y - y <= 3);
+                facingSomeone = oy.stream().anyMatch(y -> me.y - y <= 3);
+                break;
             case "W":
-                log.info("W - found someone");
-                return ox.stream().anyMatch(x -> me.x - x <= 3);
+                facingSomeone = ox.stream().anyMatch(x -> me.x - x <= 3);
+                break;
             case "S":
-                log.info("S - found someone");
-                return oy.stream().anyMatch(y -> y - me.y <= 3);
+                facingSomeone = oy.stream().anyMatch(y -> y - me.y <= 3);
+                break;
             case "E":
-                log.info("E - found someone");
-                return ox.stream().anyMatch(x -> x - me.x <= 3);
+                facingSomeone = ox.stream().anyMatch(x -> x - me.x <= 3);
+                break;
             default:
-                System.out.println("THERE IS NO CASE");
-                return false;
+                facingSomeone = false;
         }
+        if (facingSomeone) {
+            log.info("Found someone");
+        }
+        return facingSomeone;
     }
 
 }
