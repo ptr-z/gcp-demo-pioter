@@ -89,14 +89,15 @@ public class Application {
 
         log.info(String.valueOf(me));
 
-        if (me.wasHit) {
-            log.info("I was hit - fleeing");
-            return "F";
-        }
 
         if (isAnyoneInFrontOfMe(me, others)) {
             return "T";
         } else {
+            if (me.wasHit) {
+                log.info("I was hit - fleeing");
+                return "F";
+            }
+            
             counter++;
             if (counter > 2) {
                 counter = 0;
