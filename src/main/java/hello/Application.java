@@ -71,7 +71,7 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Lorem ipsum2";
+        return "Lorem ipsum3";
     }
 
     @PostMapping("/**")
@@ -90,18 +90,13 @@ public class Application {
         log.info(String.valueOf(me));
 
         if (me.wasHit) {
-            log.info("I was hit");
+            log.info("I was hit - fleeing");
             return "F";
         }
 
         if (isAnyoneInFrontOfMe(me, others)) {
             return "T";
         } else {
-
-            if (me.wasHit) {
-                log.info("Fleeing");
-                return "F";
-            }
             counter++;
             if (counter > 2) {
                 counter = 0;
@@ -132,18 +127,19 @@ public class Application {
 
         boolean facingSomeone;
 
+
         switch (me.direction) {
             case "N":
-                facingSomeone = oy.stream().anyMatch(y -> me.y - y <= 3);
+                facingSomeone = oy.stream().filter(y -> y < me.y).anyMatch(y -> me.y - y <= 3);
                 break;
             case "W":
-                facingSomeone = ox.stream().anyMatch(x -> me.x - x <= 3);
+                facingSomeone = ox.stream().filter(x -> x < me.x).anyMatch(x -> me.x - x <= 3);
                 break;
             case "S":
-                facingSomeone = oy.stream().anyMatch(y -> y - me.y <= 3);
+                facingSomeone = oy.stream().filter(y -> y > me.y).anyMatch(y -> y - me.y <= 3);
                 break;
             case "E":
-                facingSomeone = ox.stream().anyMatch(x -> x - me.x <= 3);
+                facingSomeone = ox.stream().filter(x -> x > me.x).anyMatch(x -> x - me.x <= 3);
                 break;
             default:
                 facingSomeone = false;
