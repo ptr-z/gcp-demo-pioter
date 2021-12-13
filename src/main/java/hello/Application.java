@@ -60,7 +60,7 @@ public class Application {
 
     @GetMapping("/")
     public String index() {
-        return "Let the battle begin!";
+        return "Lorem ipsum";
     }
 
     @PostMapping("/**")
