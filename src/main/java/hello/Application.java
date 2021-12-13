@@ -177,7 +177,7 @@ public class Application {
             case "W":
                 return anyoneInFront(closeOps, me.x);
         }
-
+        return false;
     }
 
     private boolean anyoneInFront(Set<Integer> closeOps, Integer y) {
